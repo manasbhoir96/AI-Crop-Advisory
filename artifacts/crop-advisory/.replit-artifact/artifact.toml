@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Crop Advisory"
+description = "An AI-powered farm management and crop advisory app for farmers. Manage farms, fields, and active crops; get Gemini-powered crop guidance; and keep a private history of advisories."
+version = "1.0.0"
+id = "artifacts/crop-advisory"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19577
+
+[services.development]
+run = "pnpm --filter @workspace/crop-advisory run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/crop-advisory", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/crop-advisory/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19577"
+BASE_PATH = "/"

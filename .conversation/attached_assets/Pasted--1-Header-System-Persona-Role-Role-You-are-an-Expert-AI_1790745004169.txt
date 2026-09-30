@@ -1,0 +1,262 @@
+---
+
+### 1. Header & System Persona Role
+
+**Role**: You are an Expert AI Systems Architect, Principal Full-Stack Engineer, and Senior UX/UI Developer.
+**Objective**: Build a production-ready, full-stack web application completely from scratch based on the exact specifications below. Do not leave any placeholders, do not mock data where a database should be used, and execute the entire implementation.
+
+### 2. Core Mission Directive
+
+You will develop an "AI-Powered Agriculture Crop Advisory Assistant"—a comprehensive platform designed to help farmers and agricultural workers diagnose crop diseases, optimize yield, and manage farm operations using generative AI.
+
+### 3. Product Goal
+
+To provide a reliable, localized, and intelligent web application where users can manage their farm profiles, log crop cycles, and receive real-time, AI-generated agricultural advice powered by Google's Gemini models.
+
+### 4. Mandatory Features
+
+* **Secure Authentication**: JWT-based user registration and login.
+* **Farm & Crop Management**: CRUD operations for managing farm profiles, individual fields, and active crop cycles.
+* **AI Advisory Engine**: A dynamic form interface to submit crop symptoms (e.g., visual descriptions, soil conditions, weather patterns) to the Gemini API for actionable remediation plans.
+* **Advisory History**: Persistent storage of past AI interactions, tied to specific fields and crops for historical tracking.
+* **Responsive UI**: A fully mobile-responsive, accessible dashboard built with Tailwind CSS.
+
+### 5. Technology Requirements
+
+* **Frontend**: React.js (Vite), React Router DOM, Tailwind CSS, Lucide React (for icons).
+* **Backend**: Node.js, Express.js.
+* **Database**: Replit Postgres (PostgreSQL).
+* **AI Integration**: `@google/genai` SDK (Strictly use the new Google Gen AI SDK).
+* **Validation & Typing**: Zod.
+* **State & Fetching**: React Context or standard fetch API with React hooks.
+
+### 6. Application Pages (Routes)
+
+* **`/` (Landing Page)**: Hero section, features overview, and call-to-action to login/register.
+* **`/login` & `/register**`: Authentication forms.
+* **`/dashboard`**: High-level overview of the user's farms, active crops, and recent AI advisories.
+* **`/farms`**: List of all farms.
+* **`/farms/:id`**: Farm details, including associated fields.
+* **`/crops/add`**: Form to register a new crop to a field.
+* **`/advisory/new`**: The AI Advisory Engine form interface.
+* **`/advisory/history`**: Paginated history of past AI diagnoses and reports.
+
+### 7. User Flow
+
+1. User arrives at the Landing Page and registers an account.
+2. User navigates to the Dashboard and is prompted to create their first Farm profile (e.g., location, soil type).
+3. User adds Fields to the Farm, and logs current Crops.
+4. User encounters an issue (e.g., yellowing leaves on tomato plants).
+5. User navigates to the AI Advisory Engine, selects the specific farm/crop context, inputs the symptoms, and submits.
+6. The Backend routes the query to Gemini, applying context and system instructions.
+7. Gemini returns a structured JSON response (Diagnosis, Action Plan, Risk Level).
+8. The backend saves the advisory record to Replit Postgres.
+9. The UI displays the formatted AI response to the user.
+
+### 8. Target Domains & Categorization
+
+* **Pest & Disease Diagnosis**: Identifying pathogens based on visual descriptions.
+* **Nutrient Deficiency**: Identifying soil issues (e.g., Nitrogen/Potassium deficiency).
+* **Weather Remediation**: Frost, drought, or flood recovery plans.
+* **Yield Optimization**: General advice on fertilizer scheduling and irrigation.
+
+### 9. Form & Advisory Configuration
+
+The AI query form must capture:
+
+* `crop_id` (Dropdown of user's active crops)
+* `growth_stage` (Seedling, Vegetative, Flowering, Fruiting, Harvest)
+* `symptom_description` (Text area)
+* `recent_weather` (Select: Dry, Humid, Rainy, Extreme Heat, Frost)
+* `soil_condition` (Select: Dry, Moist, Waterlogged)
+
+### 10. Database Schema (Production SQL for PostgreSQL)
+
+Execute this schema exactly for Replit Postgres:
+
+```sql
+CREATE TABLE users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR(255) NOT NULL,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE farms (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  location VARCHAR(255),
+  soil_type VARCHAR(100),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE crops (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  farm_id UUID REFERENCES farms(id) ON DELETE CASCADE,
+  crop_type VARCHAR(100) NOT NULL,
+  variety VARCHAR(100),
+  planting_date DATE NOT NULL,
+  status VARCHAR(50) DEFAULT 'ACTIVE',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE advisory_records (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  crop_id UUID REFERENCES crops(id) ON DELETE CASCADE,
+  symptom_query TEXT NOT NULL,
+  ai_diagnosis TEXT NOT NULL,
+  ai_action_plan JSONB NOT NULL,
+  risk_level VARCHAR(50),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+```
+
+### 11. Row Level Security (RLS) / Data Isolation Rules
+
+Since this uses standard PostgreSQL via Express.js, implement strict tenant isolation in the backend API queries. EVERY query to `farms`, `crops`, and `advisory_records` MUST include a `WHERE user_id = $1` clause utilizing the authenticated user's ID decoded from the JWT.
+
+### 12. Backend API Routes
+
+* **POST `/api/auth/register**`: Hash password with bcrypt, insert user, return JWT.
+* **POST `/api/auth/login**`: Verify password, return JWT.
+* **GET `/api/farms**`: Retrieve user's farms.
+* **POST `/api/farms**`: Create farm.
+* **GET `/api/crops**`: Retrieve user's crops.
+* **POST `/api/crops**`: Create crop.
+* **POST `/api/ai/advise**`: Accept form data, construct Gemini prompt, fetch AI response, save to `advisory_records`, return response.
+* **GET `/api/advisory**`: Retrieve user's past advisories.
+
+### 13. Gemini SDK Setup & Server-Side Security
+
+* Use the new SDK: `npm install @google/genai`
+* Initialize securely on the server-side only:
+```javascript
+import { GoogleGenAI } from '@google/genai';
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+```
+
+
+* Never expose `GEMINI_API_KEY` to the frontend.
+
+### 14. AI System Prompt
+
+Inject this instruction into the Gemini API call using the `systemInstruction` parameter:
+"You are a highly experienced agronomist and crop scientist. Your goal is to analyze farm and crop symptoms and provide actionable, localized, and scientifically sound advice. You must output all responses in strict JSON format. Include necessary disclaimers that you are an AI and physical soil testing is recommended."
+
+### 15. Detailed AI Prompts (with required JSON Schemas)
+
+When calling `ai.models.generateContent`, enforce this JSON Schema using `responseSchema` and `responseMimeType: "application/json"`:
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "diagnosis": { "type": "string", "description": "The likely cause of the issue." },
+    "risk_level": { "type": "string", "enum": ["LOW", "MODERATE", "CRITICAL"] },
+    "action_plan": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "step": { "type": "integer" },
+          "action": { "type": "string" },
+          "timeline": { "type": "string" }
+        }
+      }
+    },
+    "disclaimer": { "type": "string" }
+  },
+  "required": ["diagnosis", "risk_level", "action_plan", "disclaimer"]
+}
+
+```
+
+### 16. Zod Validation Requirements
+
+Use Zod on the Express backend to validate all incoming requests:
+
+* `RegisterSchema`: Email must be valid, password min 8 chars.
+* `FarmSchema`: Name string > 2 chars, soil_type optional string.
+* `AdvisoryQuerySchema`: `crop_id` UUID, `symptom_description` min 10 chars, `growth_stage` enum.
+
+### 17. Frontend Components List
+
+* `Navbar`: Navigation links and logout button.
+* `Sidebar`: Dashboard routing (Farms, Crops, Advisory, History).
+* `AuthForm`: Reusable login/register component.
+* `DashboardCard`: UI wrapper for metrics.
+* `DataTable`: Reusable table for listing farms/crops/history.
+* `AdvisoryForm`: The main form for submitting symptoms.
+* `AIResponseCard`: Formatted display for Gemini's JSON output (Diagnosis, Risk Level badge, Action Plan timeline).
+* `ProtectedRoute`: Wrapper to redirect unauthenticated users.
+
+### 18. Security Requirements
+
+* Store JWTs in HTTP-only cookies or strict local storage.
+* Sanitize all user inputs before raw SQL execution using parameterized queries (e.g., `pg` library `$1, $2`).
+* Implement global error handling middleware in Express to prevent leaking stack traces.
+* Use `cors` middleware configured for the frontend URL.
+
+### 19. Environment Variables Template
+
+```env
+# /server/.env
+PORT=5000
+DATABASE_URL="postgresql://user:pass@host:port/dbname"
+JWT_SECRET="generate_a_secure_random_string"
+GEMINI_API_KEY="your_google_ai_studio_key"
+
+# /client/.env
+VITE_API_BASE_URL="http://localhost:5000/api"
+
+```
+
+### 20. Suggested Folder Structure
+
+```text
+/
+├── client/
+│   ├── src/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   ├── context/
+│   │   ├── utils/
+│   │   ├── App.jsx
+│   │   └── main.jsx
+│   ├── package.json
+│   └── tailwind.config.js
+├── server/
+│   ├── controllers/
+│   ├── middlewares/
+│   ├── routes/
+│   ├── db/
+│   ├── server.js
+│   └── package.json
+└── README.md
+
+```
+
+### 21. Implementation Phases
+
+1. **Phase 1: Backend Foundation**: Initialize Node.js, connect Replit Postgres, set up Zod validations and JWT Auth.
+2. **Phase 2: Core Entities**: Build CRUD API routes for Farms and Crops.
+3. **Phase 3: AI Integration**: Build the Gemini API integration using `@google/genai` and enforce JSON schema output.
+4. **Phase 4: Frontend Scaffold**: Initialize Vite React, Tailwind, and React Router. Build Auth UI and Protected Routes.
+5. **Phase 5: Dashboard & Forms**: Build Farm/Crop UI, and the dynamic Advisory Form.
+6. **Phase 6: Result Rendering**: Parse and beautifully render the AI JSON response in the `AIResponseCard`.
+
+### 22. Acceptance Criteria
+
+* Users can successfully register, log in, and maintain a session.
+* Database tables are created and relationships (foreign keys) function correctly.
+* A user cannot view or edit another user's farms, crops, or advisories.
+* The AI form submits successfully to the backend, receives a structurally sound JSON response from Gemini, saves it to PostgreSQL, and displays it without breaking the UI.
+
+### 23. Final Instruction to Coding Agent
+
+You have the complete, exhaustive blueprint. Do not ask for further clarification unless critically blocked by an environment error. Generate all folders, files, backend routing, database logic, frontend components, and styling right now in a single, cohesive workflow. Start by generating the database connection logic and backend authentication routes.
